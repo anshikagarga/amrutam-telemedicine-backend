@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest";
 import request from "supertest";
+import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { prisma } from "../src/lib/prisma.js";
 import app from "../src/app.js";
@@ -52,7 +53,7 @@ describe("Consultation API", () => {
     const createTestData = async () => {
         const patient = await prisma.user.create({
             data: {
-                email: `test-patient-${Date.now()}@example.com`,
+                email: `test-patient-${crypto.randomUUID()}@example.com`,
                 password: "test-password",
                 role: "PATIENT",
             },
