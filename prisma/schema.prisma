@@ -1,0 +1,180 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                   String         @id @default(uuid())
+  email                String         @unique
+  password             String
+  role                 Role           @default(PATIENT)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  auditLogs            AuditLog[]
+  PatientConsultations Consultation[] @relation("PatientConsultations")
+  doctor               Doctor?
+  prescriptions        Prescription[] @relation("PatientPrescriptions")
+  profile              Profile?
+}
+
+model Profile {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  firstName String
+  lastName  String?
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Doctor {
+  id                String             @id @default(uuid())
+  userId            String             @unique
+  specialization    String
+  qualification     String
+  experienceYears   Int
+  consultationFee   Decimal
+  bio               String?
+  isVerified        Boolean            @default(false)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  availabilitySlots AvailabilitySlot[]
+  consultations     Consultation[]
+  user              User               @relation(fields: [userId], references: [id])
+  prescriptions     Prescription[]
+}
+
+model AvailabilitySlot {
+  id           String        @id @default(uuid())
+  doctorId     String
+  startTime    DateTime
+  endTime      DateTime
+  status       SlotStatus    @default(AVAILABLE)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  doctor       Doctor        @relation(fields: [doctorId], references: [id])
+  consultation Consultation?
+
+  @@index([doctorId, startTime])
+}
+
+model Consultation {
+  id           String             @id @default(uuid())
+  patientId    String
+  doctorId     String
+  slotId       String             @unique
+  status       ConsultationStatus @default(SCHEDULED)
+  notes        String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  doctor       Doctor             @relation(fields: [doctorId], references: [id])
+  patient      User               @relation("PatientConsultations", fields: [patientId], references: [id])
+  slot         AvailabilitySlot   @relation(fields: [slotId], references: [id])
+  payment      Payment?
+  prescription Prescription?
+
+  @@index([patientId, createdAt])
+  @@index([doctorId, createdAt])
+}
+
+model Prescription {
+  id             String             @id @default(uuid())
+  consultationId String             @unique
+  doctorId       String
+  patientId      String
+  medicines      String
+  instructions   String?
+  status         PrescriptionStatus @default(ACTIVE)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  consultation   Consultation       @relation(fields: [consultationId], references: [id])
+  doctor         Doctor             @relation(fields: [doctorId], references: [id])
+  patient        User               @relation("PatientPrescriptions", fields: [patientId], references: [id])
+
+  @@index([patientId, createdAt])
+  @@index([doctorId, createdAt])
+}
+
+model Payment {
+  id             String        @id @default(uuid())
+  consultationId String        @unique
+  amount         Decimal
+  status         PaymentStatus @default(PENDING)
+  transactionId  String?       @unique
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  consultation   Consultation  @relation(fields: [consultationId], references: [id])
+
+  @@index([status])
+}
+
+model AuditLog {
+  id        String      @id @default(uuid())
+  userId    String?
+  action    AuditAction
+  entity    String
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime    @default(now())
+  user      User?       @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+}
+
+enum Role {
+  PATIENT
+  DOCTOR
+  ADMIN
+}
+
+enum SlotStatus {
+  AVAILABLE
+  BOOKED
+  CANCELLED
+}
+
+enum ConsultationStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum PrescriptionStatus {
+  ACTIVE
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum AuditAction {
+  USER_LOGIN
+  USER_REGISTERED
+  CONSULTATION_BOOKED
+  CONSULTATION_CANCELLED
+  PRESCRIPTION_CREATED
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+}
+model IdempotencyKey {
+  id String @id @default(uuid())
+  key String @unique
+  userId String
+  requestHash String?
+  response Json?
+  status Int?
+  createdAt DateTime @default(now())
+  expiresAt DateTime?
+
+  @@index([userId, createdAt])
+}

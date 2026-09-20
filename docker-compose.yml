@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:18
+    container_name: amrutam-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: amrutam_telemedicine
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+
+  api:
+    build: .
+    container_name: amrutam-api
+    restart: unless-stopped
+    ports:
+      - "5001:5000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/amrutam_telemedicine
+      JWT_SECRET: change-this-in-production
+      PORT: 5000
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:
